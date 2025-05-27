@@ -1,6 +1,13 @@
 from flask import Flask, render_template_string, request, redirect
 import firebase_admin
 from firebase_admin import credentials, firestore
+import os
+import json
+from firebase_admin import credentials, initialize_app
+
+firebase_config = json.loads(os.getenv("FIREBASE_CONFIG"))
+cred = credentials.Certificate(firebase_config)
+initialize_app(cred)
 
 cred = credentials.Certificate('firebase_config.json')
 firebase_admin.initialize_app(cred)
