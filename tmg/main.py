@@ -1,24 +1,28 @@
 import telebot
 import firebase_admin
 from firebase_admin import credentials, firestore
+import os
+import json
 import time
 import threading
 
-# 🔗 Token do bot
-TOKEN = 'SEU_TOKEN_DO_BOT'
+# 🔗 Carregar variáveis da nuvem Railway
+TOKEN = os.getenv('TOKEN')
+PIX = os.getenv('PIX')
 
-# 🔑 Inicializando Firebase
-cred = credentials.Certificate('firebase_config.json')
+# 🔥 Firebase via variável de ambiente
+firebase_config = json.loads(os.getenv("FIREBASE_CONFIG"))
+cred = credentials.Certificate(firebase_config)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 bot = telebot.TeleBot(TOKEN)
 
-# 🔋 Configuração de energia
+# ⚡ Energia
 ENERGIA_MAX = 500
-REGEN_TEMPO = 108  # segundos (1 energia a cada 108 segundos)
+REGEN_TEMPO = 108  # 1 energia a cada 108 segundos
 
-# 🎯 Função de regeneração de energia
+# 🔋 Regeneração de energia
 def regenerar_energia():
     while True:
         users = db.collection('users').stream()
@@ -32,7 +36,7 @@ def regenerar_energia():
 
 threading.Thread(target=regenerar_energia, daemon=True).start()
 
-# 🚀 Comando /start
+# 🚀 /start
 @bot.message_handler(commands=['start'])
 def start(message):
     user_id = str(message.from_user.id)
@@ -48,7 +52,7 @@ def start(message):
             'level': 1,
             'nfts': [],
         })
-        bot.send_message(message.chat.id, f"🤑 Bem-vindo, {message.from_user.first_name}! Você foi cadastrado no sistema.")
+        bot.send_message(message.chat.id, f"🤑 Bem-vindo, {message.from_user.first_name}! Você foi cadastrado.")
     else:
         bot.send_message(message.chat.id, "👋 Você já está cadastrado!")
 
@@ -56,7 +60,7 @@ def start(message):
     markup.add(telebot.types.InlineKeyboardButton("🖱️ CLICAR POR ESP", callback_data="click"))
     bot.send_message(message.chat.id, "Clique no botão para ganhar ESP:", reply_markup=markup)
 
-# 📲 Callback do botão de clique
+# 🖱️ Clique
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     if call.data == "click":
@@ -68,7 +72,7 @@ def callback_query(call):
             bot.answer_callback_query(call.id, "⚡ Energia insuficiente!")
             return
 
-        ganho = 1  # Pode ser aumentado por upgrades ou NFTs
+        ganho = 1
         if 'LENDARIO' in user.get('nfts', []):
             ganho *= 2
         if 'MITICO' in user.get('nfts', []):
@@ -83,7 +87,7 @@ def callback_query(call):
 
         bot.answer_callback_query(call.id, f"💰 +{ganho} ESP! ⚡ Energia restante: {user['energia'] - 1}")
 
-# 📑 Comando /perfil
+# 👤 Perfil
 @bot.message_handler(commands=['perfil'])
 def perfil(message):
     user_id = str(message.from_user.id)
@@ -91,7 +95,7 @@ def perfil(message):
     user = ref.get().to_dict()
 
     bot.send_message(message.chat.id, 
-    f"""👤 Perfil de {user['name']}
+    f"""👤 {user['name']}
 💰 Saldo: {user['saldo']} ESP
 🖱️ Cliques: {user['cliques']}
 ⚡ Energia: {user['energia']}/{ENERGIA_MAX}
@@ -102,7 +106,7 @@ def perfil(message):
 @bot.message_handler(commands=['depositar'])
 def depositar(message):
     bot.send_message(message.chat.id, 
-    "🔗 Envie o valor para o PIX: 39707972840\nApós pagamento, envie o comprovante para um admin.")
+    f"🔗 Envie o valor para o PIX: {PIX}\nApós pagamento, envie o comprovante para um admin.")
 
 # 🏦 /sacar
 @bot.message_handler(commands=['sacar'])
@@ -123,5 +127,5 @@ def sacar(message):
     bot.send_message(message.chat.id, 
     f"🏦 Saque solicitado!\n💸 Valor líquido: {saque} ESP\n💸 Taxa: {taxa} ESP\n✅ Envie sua chave PIX para um admin.")
 
-# 🚀 Rodar o bot
+# 🔥 Rodar bot
 bot.infinity_polling()
